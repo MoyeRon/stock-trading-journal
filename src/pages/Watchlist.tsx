@@ -1,199 +1,84 @@
-import React, { useEffect, useState } from 'react';
-import { useAppStore } from '../store';
-import { Plus, Trash2, Eye, TrendingUp, TrendingDown } from 'lucide-react';
+import { FC } from 'react';
+import { Plus, MoreHorizontal, BookOpen, Target, TrendingUp, TrendingDown } from 'lucide-react';
 
-const Watchlist: React.FC = () => {
-  const { watchlist, fetchWatchlist, addWatchlistStock, removeWatchlistStock, refreshStockPrices } = useAppStore();
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({
-    stockCode: '',
-    stockName: '',
-    notes: '',
-  });
+interface WatchlistProps {
+  showToast: (message: string, type: 'success' | 'error' | 'info') => void;
+}
 
-  useEffect(() => {
-    fetchWatchlist();
+const mockWatchlist = [
+  { id: 1, name: '恒瑞医药', code: '600276', price: 45.20, change: 1.25, changePercent: 2.84, notes: '创新药催化，即将突破年线压制', alertPrice: 46.00 },
+  { id: 2, name: '赛力斯', code: '601127', price: 92.45, change: -2.10, changePercent: -2.22, notes: '回踩20日均线，观察企稳信号', alertPrice: 90.00 },
+  { id: 3, name: '中际旭创', code: '300308', price: 168.90, change: 8.50, changePercent: 5.30, notes: 'AI算力核心，业绩超预期，沿趋势线持有', alertPrice: 160.00 },
+];
 
-    // 每10秒自动刷新
-    const interval = setInterval(() => {
-      refreshStockPrices();
-    }, 10000);
+// --- 颜色辅助函数 (A股红涨绿跌) ---
+const getPnlColor = (val: number) => val >= 0 ? 'text-red-500' : 'text-green-500';
+const getPnlBg = (val: number) => val >= 0 ? 'bg-red-500' : 'bg-green-500';
 
-    return () => clearInterval(interval);
-  }, [fetchWatchlist, refreshStockPrices]);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await addWatchlistStock({
-      ...formData,
-      addedDate: new Date().toISOString().split('T')[0],
-    });
-    setShowAddForm(false);
-    setFormData({ stockCode: '', stockName: '', notes: '' });
-  };
-
+const Watchlist: FC<WatchlistProps> = ({ showToast }) => {
   return (
-    <div className="p-6 max-w-7xl mx-auto">
-      <div className="flex justify-between items-center mb-8 animate-fade-in">
+    <div className="space-y-6 h-full flex flex-col animate-in fade-in duration-500">
+      <div className="flex justify-between items-end">
         <div>
-          <h2 className="text-3xl font-bold text-white mb-2">股票观察</h2>
-          <p className="text-slate-400">密切关注您感兴趣的股票，等待最佳时机</p>
+          <h1 className="text-2xl font-semibold text-gray-900 tracking-tight">观察池 (自选股)</h1>
+          <p className="text-sm text-gray-500 mt-1">关注潜在A股交易机会，设置异动提醒。</p>
         </div>
-        <button
-          onClick={() => setShowAddForm(true)}
-          className="flex items-center gap-2 btn-primary text-white px-6 py-3 rounded-xl font-medium"
+        <button 
+          onClick={() => showToast('打开添加自选股面板...', 'info')}
+          className="flex items-center space-x-2 bg-white border border-gray-200 hover:border-gray-300 hover:bg-gray-50 text-gray-700 px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-sm hover:shadow active:scale-95"
         >
-          <Plus size={20} />
-          添加股票
+          <Plus size={16} />
+          <span>添加自选</span>
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {watchlist.map((stock, index) => (
-          <div key={stock.id} className="glass-card rounded-2xl p-5 animate-slide-up" style={{ animationDelay: `${index * 0.05}s` }}>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+        {mockWatchlist.map(item => (
+          <div key={item.id} className="bg-white p-5 rounded-xl border border-gray-200 shadow-sm hover:shadow-md transition-shadow group cursor-pointer relative overflow-hidden">
+            <div className={`absolute top-0 left-0 w-1 h-full opacity-0 group-hover:opacity-100 transition-opacity ${getPnlBg(item.change)}`}></div>
+            
             <div className="flex justify-between items-start mb-4">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary-400/20 to-primary-600/20 flex items-center justify-center">
-                  <Eye className="w-5 h-5 text-primary-400" />
+              <div>
+                <div className="flex items-end space-x-2">
+                  <h3 className="text-xl font-bold text-gray-900">{item.name}</h3>
+                  <span className="text-xs text-gray-400 mb-1">{item.code}</span>
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-white">{stock.stockName}</h3>
-                  <p className="text-sm text-slate-500">{stock.stockCode}</p>
+                {/* 这里是之前丢失的价格显示区块 */}
+                <div className="flex items-center mt-2 space-x-3">
+                  <span className={`text-xl font-bold ${getPnlColor(item.change)}`}>¥{item.price.toFixed(2)}</span>
+                  <span className={`text-sm font-medium flex items-center ${getPnlColor(item.change)} bg-opacity-10 px-1.5 py-0.5 rounded ${item.change >= 0 ? 'bg-red-50' : 'bg-green-50'}`}>
+                    {item.change >= 0 ? <TrendingUp size={14} className="mr-1"/> : <TrendingDown size={14} className="mr-1"/>}
+                    {item.change >= 0 ? '+' : ''}{item.changePercent}%
+                  </span>
                 </div>
               </div>
-              <button
-                onClick={() => removeWatchlistStock(stock.id)}
-                className="p-2 rounded-lg text-slate-400 hover:text-danger-400 hover:bg-danger-500/10 transition-all"
-                title="删除"
+              <button 
+                onClick={() => showToast(`操作菜单: ${item.name}`, 'info')}
+                className="text-gray-400 hover:text-gray-700 p-1 rounded-md hover:bg-gray-100 active:scale-95 transition-all"
               >
-                <Trash2 size={18} />
+                <MoreHorizontal size={18}/>
               </button>
             </div>
             
-            <div className="mb-4">
-              <div className="flex items-baseline gap-2">
-                <span className="text-2xl font-bold text-white">
-                  ¥{stock.currentPrice?.toFixed(2) || '--'}
-                </span>
-                {stock.changePercent !== undefined && (
-                  <span className={`flex items-center gap-1 text-sm font-medium ${
-                    stock.changePercent >= 0 ? 'text-success-400' : 'text-danger-400'
-                  }`}>
-                    {stock.changePercent >= 0 ? (
-                      <TrendingUp size={16} />
-                    ) : (
-                      <TrendingDown size={16} />
-                    )}
-                    {stock.changePercent >= 0 ? '+' : ''}{stock.changePercent.toFixed(2)}%
-                  </span>
-                )}
+            <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-600 mb-4 border border-gray-100 h-16 line-clamp-2">
+              <div className="flex items-start space-x-2">
+                <BookOpen size={16} className="text-blue-500 mt-0.5 flex-shrink-0" />
+                <p>{item.notes}</p>
               </div>
             </div>
-            
-            {stock.notes && (
-              <div className="pt-4 border-t border-white/10">
-                <p className="text-sm text-slate-400">{stock.notes}</p>
-              </div>
-            )}
-            
-            <div className="pt-4 border-t border-white/10 mt-4">
-              <p className="text-xs text-slate-500">
-                添加于：{stock.addedDate}
-              </p>
+
+            <div className="flex items-center justify-between text-xs text-gray-500 pt-3 border-t border-gray-100">
+              <span className="flex items-center"><Target size={14} className="mr-1"/> 提醒价: ¥{item.alertPrice.toFixed(2)}</span>
+              <button 
+                onClick={() => showToast(`正在编辑 ${item.name} 的观察逻辑...`, 'info')}
+                className="text-blue-600 font-medium hover:text-blue-700 hover:underline active:scale-95 px-2 py-1 rounded-md hover:bg-blue-50 transition-all"
+              >
+                编辑逻辑
+              </button>
             </div>
           </div>
         ))}
       </div>
-
-      {watchlist.length === 0 && (
-        <div className="glass-card rounded-2xl p-12 text-center animate-fade-in">
-          <Eye className="w-12 h-12 mx-auto mb-4 text-slate-500 opacity-50" />
-          <p className="text-lg text-slate-400 mb-2">暂无观察股票</p>
-          <p className="text-sm text-slate-500 mb-6">添加您感兴趣的股票到观察列表</p>
-          <button
-            onClick={() => setShowAddForm(true)}
-            className="inline-flex items-center gap-2 btn-primary text-white px-6 py-3 rounded-xl font-medium"
-          >
-            <Plus size={20} />
-            添加股票
-          </button>
-        </div>
-      )}
-
-      {showAddForm && (
-        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
-          <div className="glass-card rounded-2xl max-w-md w-full animate-fade-in">
-            <div className="flex justify-between items-center p-6 border-b border-white/10">
-              <h3 className="text-lg font-semibold text-white">添加观察股票</h3>
-              <button
-                onClick={() => setShowAddForm(false)}
-                className="p-2 rounded-lg hover:bg-white/10 text-slate-400 hover:text-white transition-all"
-              >
-                <Trash2 size={20} />
-              </button>
-            </div>
-            
-            <form onSubmit={handleSubmit} className="p-6 space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  股票代码
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.stockCode}
-                  onChange={(e) => setFormData({ ...formData, stockCode: e.target.value })}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all"
-                  placeholder="如：600519"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  股票名称
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formData.stockName}
-                  onChange={(e) => setFormData({ ...formData, stockName: e.target.value })}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all"
-                  placeholder="如：贵州茅台"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-300 mb-1">
-                  备注
-                </label>
-                <textarea
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-primary-500 focus:ring-1 focus:ring-primary-500 transition-all resize-none"
-                  rows={3}
-                  placeholder="添加备注..."
-                />
-              </div>
-
-              <div className="flex gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="flex-1 px-4 py-3 border border-white/10 rounded-xl text-slate-300 hover:bg-white/5 transition-all"
-                >
-                  取消
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 px-4 py-3 btn-primary text-white rounded-xl font-medium"
-                >
-                  添加
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
